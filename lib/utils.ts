@@ -201,8 +201,8 @@ export function writeGradleInitScript(gradleHome: string, port: number, readOnly
   const initDir = path.join(gradleHome, 'init.d');
   fs.mkdirSync(initDir, { recursive: true });
 
-  const initScript = `gradle.settingsEvaluated {
-    buildCache {
+  const initScript = `gradle.settingsEvaluated { settings ->
+    settings.buildCache {
         remote(HttpBuildCache) {
             url = "http://127.0.0.1:${port}/cache/"
             push = ${!readOnly}
