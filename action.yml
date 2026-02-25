@@ -1,0 +1,86 @@
+name: 'BoringCache Java'
+description: 'Cache once. Reuse everywhere. Setup Java via mise and Gradle/Maven build cache backed by BoringCache.'
+author: 'BoringCache'
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  cli-version:
+    description: 'BoringCache CLI version (e.g., v1.0.0). Set to "skip" to disable automatic CLI setup.'
+    required: false
+    default: 'v1.8.0'
+  workspace:
+    description: 'BoringCache workspace (e.g., "my-workspace" or "org/workspace")'
+    required: false
+  cache-tag:
+    description: 'Cache tag prefix for BoringCache. Defaults to repository name.'
+    required: false
+    default: ''
+  java-version:
+    description: 'Java version to install via mise (e.g., "21", "17"). Auto-detected from .java-version or .tool-versions if not specified.'
+    required: false
+  working-directory:
+    description: 'Working directory for the project'
+    required: false
+    default: '.'
+  cache-java:
+    description: 'Cache Java installation from mise'
+    required: false
+    default: 'true'
+  proxy-port:
+    description: 'Port for the BoringCache build cache proxy.'
+    required: false
+    default: '5000'
+  read-only:
+    description: 'Do not push build results to cache (useful for PRs).'
+    required: false
+    default: 'false'
+  gradle-home:
+    description: 'Gradle user home directory (for init script and properties).'
+    required: false
+    default: '~/.gradle'
+  enable-build-cache:
+    description: 'Set org.gradle.caching=true in gradle.properties (Gradle only).'
+    required: false
+    default: 'true'
+  proxy-no-git:
+    description: 'Pass `--no-git` to BoringCache proxy.'
+    required: false
+    default: 'false'
+  proxy-no-platform:
+    description: 'Pass `--no-platform` to BoringCache proxy.'
+    required: false
+    default: 'false'
+  verbose:
+    description: 'Enable verbose CLI output for debugging'
+    required: false
+    default: 'false'
+  exclude:
+    description: 'Glob pattern to exclude files from cache digest'
+    required: false
+  save-always:
+    description: 'Save cache even if the job fails'
+    required: false
+    default: 'false'
+
+outputs:
+  workspace:
+    description: 'Resolved workspace name'
+  java-version:
+    description: 'Installed Java version'
+  cache-tag:
+    description: 'Cache tag prefix used'
+  cache-hit:
+    description: 'Whether any cache was restored'
+  java-cache-hit:
+    description: 'Whether the Java installation cache was restored'
+  proxy-port:
+    description: 'Proxy port used.'
+
+runs:
+  using: 'node24'
+  main: 'dist/restore/index.js'
+  post: 'dist/save/index.js'
+  post-if: "always() || inputs.save-always == 'true'"

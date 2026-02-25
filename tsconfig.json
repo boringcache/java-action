@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2019",
+    "lib": ["ES2019", "DOM"],
+    "types": ["node", "jest"],
+    "module": "commonjs",
+    "outDir": "./dist/",
+    "rootDir": "./lib/",
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "exclude": ["node_modules", "tests/**/*", "__tests__/**/*", "dist/**/*"]
+}

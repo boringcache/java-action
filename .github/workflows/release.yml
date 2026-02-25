@@ -1,0 +1,53 @@
+name: Release Java Action
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Release Java Action
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Test action
+        run: npm test
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
+          name: "BoringCache Java ${{ github.ref_name || github.event.inputs.tag }}"
+          body: |
+            **Cache once. Reuse everywhere.**
+
+            A universal build cache for CI, Docker, and local dev. Reuse what you already built—without re-uploading.
+
+            Setup Java via mise and Gradle/Maven build cache backed by BoringCache.
+
+            See [README](https://github.com/boringcache/java-action) for usage guide.
+          draft: false
+          prerelease: false

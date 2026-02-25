@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: boringcache/nodejs-action@v1
+        with:
+          node-version: '22'
+          workspace: boringcache/actions
+
+      - run: npm install
+      - run: npm run build
+      - run: npm test
+
+  test-gradle:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: boringcache/nodejs-action@v1
+        with:
+          node-version: '22'
+          workspace: boringcache/actions
+      - run: npm install
+      - run: npm run build
+
+      - name: Create Gradle project
+        run: |
+          mkdir -p test-project/src/main/java/com/example
+          cat > test-project/settings.gradle << 'GRADLE'
+          rootProject.name = 'test-project'
+          GRADLE
+          cat > test-project/build.gradle << 'GRADLE'
+          plugins { id 'java' }
+          java { sourceCompatibility = JavaVersion.VERSION_17 }
+          repositories { mavenCentral() }
+          dependencies { testImplementation 'junit:junit:4.13.2' }
+          GRADLE
+          cat > test-project/src/main/java/com/example/Main.java << 'JAVA'
+          package com.example;
+          public class Main { public static void main(String[] args) { System.out.println("Hello from Gradle!"); } }
+          JAVA
+
+      - name: Setup Java + Gradle cache
+        id: java
+        uses: ./
+        with:
+          workspace: boringcache/actions
+          java-version: '21'
+          working-directory: test-project
+
+      - name: Verify Java
+        run: |
+          set -euo pipefail
+          java --version
+          echo "java-version: ${{ steps.java.outputs.java-version }}"
+          echo "cache-hit: ${{ steps.java.outputs.cache-hit }}"
+          echo "proxy-port: ${{ steps.java.outputs.proxy-port }}"
+
+      - name: Build with Gradle
+        working-directory: test-project
+        run: |
+          set -euo pipefail
+          gradle wrapper
+          ./gradlew build --info 2>&1 | tail -50
+          java -cp build/classes/java/main com.example.Main
+
+  test-maven:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: boringcache/nodejs-action@v1
+        with:
+          node-version: '22'
+          workspace: boringcache/actions
+      - run: npm install
+      - run: npm run build
+
+      - name: Create Maven project
+        run: |
+          mkdir -p test-project/src/main/java/com/example
+          cat > test-project/pom.xml << 'POM'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>test-project</artifactId>
+            <version>1.0</version>
+            <properties>
+              <maven.compiler.source>17</maven.compiler.source>
+              <maven.compiler.target>17</maven.compiler.target>
+            </properties>
+            <dependencies>
+              <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.13.2</version>
+                <scope>test</scope>
+              </dependency>
+            </dependencies>
+          </project>
+          POM
+          cat > test-project/src/main/java/com/example/Main.java << 'JAVA'
+          package com.example;
+          public class Main { public static void main(String[] args) { System.out.println("Hello from Maven!"); } }
+          JAVA
+
+      - name: Setup Java + Maven cache
+        id: java
+        uses: ./
+        with:
+          workspace: boringcache/actions
+          java-version: '17'
+          working-directory: test-project
+
+      - name: Verify Java
+        run: |
+          set -euo pipefail
+          java --version
+          echo "java-version: ${{ steps.java.outputs.java-version }}"
+
+      - name: Install Maven
+        run: |
+          if ! command -v mvn &>/dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -qq -y maven
+          fi
+
+      - name: Build with Maven
+        working-directory: test-project
+        run: |
+          set -euo pipefail
+          mvn package -q
+          java -cp target/test-project-1.0.jar com.example.Main
+
+  test-versions:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['17', '21']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: boringcache/nodejs-action@v1
+        with:
+          node-version: '22'
+          workspace: boringcache/actions
+      - run: npm install
+      - run: npm run build
+
+      - name: Setup Java ${{ matrix.version }}
+        id: java
+        uses: ./
+        with:
+          workspace: boringcache/actions
+          java-version: ${{ matrix.version }}
+
+      - name: Verify version
+        run: |
+          set -euo pipefail
+          java --version
+          echo "Installed: ${{ steps.java.outputs.java-version }}"
