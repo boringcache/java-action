@@ -17097,8 +17097,8 @@ Minimatch.prototype._matchGlobstar = function (file, pattern, partial, fileIndex
   }
 
   var head = pattern.slice(patternIndex, firstgs)
-  var body = pattern.slice(firstgs + 1, lastgs)
-  var tail = pattern.slice(lastgs + 1)
+  var body = partial ? pattern.slice(firstgs + 1) : pattern.slice(firstgs + 1, lastgs)
+  var tail = partial ? [] : pattern.slice(lastgs + 1)
 
   // check the head
   if (head.length) {
@@ -17142,7 +17142,7 @@ Minimatch.prototype._matchGlobstar = function (file, pattern, partial, fileIndex
         return false
       }
     }
-    return sawSome
+    return partial || sawSome
   }
 
   // split body into segments at each GLOBSTAR
@@ -17222,7 +17222,7 @@ Minimatch.prototype._matchGlobStarBodySections = function (
     }
     fileIndex++
   }
-  return null
+  return partial || null
 }
 
 Minimatch.prototype._matchOne = function (file, pattern, partial, fileIndex, patternIndex) {
@@ -42214,7 +42214,7 @@ async function run() {
         const proxyPid = core.getState('proxyPid');
         if (proxyPid) {
             await (0, utils_1.stopRegistryProxy)(parseInt(proxyPid, 10));
-            core.info('Gradle build cache proxy stopped');
+            core.info('Build cache proxy stopped');
         }
         if (!workspace) {
             core.info('No workspace found, skipping save');
@@ -42314,6 +42314,8 @@ exports.detectBuildTool = detectBuildTool;
 exports.resolveGradleHome = resolveGradleHome;
 exports.writeGradleInitScript = writeGradleInitScript;
 exports.enableGradleBuildCache = enableGradleBuildCache;
+exports.ensureMavenBuildCacheExtension = ensureMavenBuildCacheExtension;
+exports.writeMavenBuildCacheConfig = writeMavenBuildCacheConfig;
 const core = __importStar(__nccwpck_require__(37484));
 const exec = __importStar(__nccwpck_require__(95236));
 const fs = __importStar(__nccwpck_require__(79896));
@@ -42496,6 +42498,66 @@ function enableGradleBuildCache(gradleHome) {
     const line = '\norg.gradle.caching=true\n';
     fs.appendFileSync(propsPath, line);
     core.info(`Enabled build cache in ${propsPath}`);
+}
+const MAVEN_BUILD_CACHE_EXT_GROUP = 'org.apache.maven.extensions';
+const MAVEN_BUILD_CACHE_EXT_ARTIFACT = 'maven-build-cache-extension';
+const MAVEN_BUILD_CACHE_EXT_VERSION = '1.2.2';
+function ensureMavenBuildCacheExtension(workingDir) {
+    const mvnDir = path.join(workingDir, '.mvn');
+    fs.mkdirSync(mvnDir, { recursive: true });
+    const extensionsPath = path.join(mvnDir, 'extensions.xml');
+    try {
+        const content = fs.readFileSync(extensionsPath, 'utf-8');
+        if (content.includes(MAVEN_BUILD_CACHE_EXT_ARTIFACT)) {
+            core.info('Maven Build Cache Extension already present in .mvn/extensions.xml');
+            return;
+        }
+        // Inject extension before closing </extensions> tag
+        const extensionBlock = `  <extension>
+    <groupId>${MAVEN_BUILD_CACHE_EXT_GROUP}</groupId>
+    <artifactId>${MAVEN_BUILD_CACHE_EXT_ARTIFACT}</artifactId>
+    <version>${MAVEN_BUILD_CACHE_EXT_VERSION}</version>
+  </extension>
+`;
+        const updated = content.replace('</extensions>', extensionBlock + '</extensions>');
+        fs.writeFileSync(extensionsPath, updated);
+        core.info(`Added Maven Build Cache Extension to existing ${extensionsPath}`);
+    }
+    catch {
+        // File doesn't exist, create it
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<extensions xmlns="http://maven.apache.org/EXTENSIONS/1.0.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://maven.apache.org/EXTENSIONS/1.0.0 https://maven.apache.org/xsd/core-extensions-1.0.0.xsd">
+  <extension>
+    <groupId>${MAVEN_BUILD_CACHE_EXT_GROUP}</groupId>
+    <artifactId>${MAVEN_BUILD_CACHE_EXT_ARTIFACT}</artifactId>
+    <version>${MAVEN_BUILD_CACHE_EXT_VERSION}</version>
+  </extension>
+</extensions>
+`;
+        fs.writeFileSync(extensionsPath, xml);
+        core.info(`Created ${extensionsPath} with Maven Build Cache Extension`);
+    }
+}
+function writeMavenBuildCacheConfig(workingDir, port, readOnly) {
+    const mvnDir = path.join(workingDir, '.mvn');
+    fs.mkdirSync(mvnDir, { recursive: true });
+    const configPath = path.join(mvnDir, 'maven-build-cache-config.xml');
+    const saveToRemote = !readOnly;
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<cache xmlns="http://maven.apache.org/BUILD-CACHE-CONFIG/1.2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://maven.apache.org/BUILD-CACHE-CONFIG/1.2.0 https://maven.apache.org/xsd/build-cache-config-1.2.0.xsd">
+  <configuration>
+    <remote enabled="true" saveToRemote="${saveToRemote}" transport="resolver" id="boringcache">
+      <url>http://127.0.0.1:${port}</url>
+    </remote>
+  </configuration>
+</cache>
+`;
+    fs.writeFileSync(configPath, xml);
+    core.info(`Wrote Maven build cache config to ${configPath}`);
 }
 
 

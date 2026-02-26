@@ -11,6 +11,7 @@ jest.mock('fs', () => {
     mkdirSync: jest.fn(),
     writeFileSync: jest.fn(),
     appendFileSync: jest.fn(),
+    readFileSync: jest.fn().mockImplementation(() => { throw new Error('ENOENT'); }),
   };
 });
 
@@ -103,7 +104,7 @@ describe('Java restore/save round-trip', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        'cli-version': 'v1.8.0',
+        'cli-version': 'v1.9.0',
         'workspace': 'myorg/myproject',
         'cache-tag': '',
         'java-version': '21',
@@ -123,7 +124,7 @@ describe('Java restore/save round-trip', () => {
     });
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    expect(ensureBoringCache).toHaveBeenCalledWith({ version: 'v1.8.0' });
+    expect(ensureBoringCache).toHaveBeenCalledWith({ version: 'v1.9.0' });
 
     expect(execBoringCache).toHaveBeenCalledWith(
       expect.arrayContaining(['restore', 'myorg/myproject']),
@@ -187,7 +188,7 @@ describe('Java restore/save round-trip', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        'cli-version': 'v1.8.0',
+        'cli-version': 'v1.9.0',
         'workspace': 'myorg/myproject',
         'java-version': '17',
         'working-directory': tmpDir,
@@ -207,8 +208,22 @@ describe('Java restore/save round-trip', () => {
       ['use', '-g', 'java@17'],
     );
 
-    expect(startRegistryProxy).not.toHaveBeenCalled();
+    // Maven now starts proxy for build cache
+    expect(startRegistryProxy).toHaveBeenCalledWith(expect.objectContaining({
+      command: 'cache-registry',
+      workspace: 'myorg/myproject',
+      host: '127.0.0.1',
+      port: 5000,
+    }));
+    expect(waitForProxy).toHaveBeenCalledWith(5000, 20000, 54321);
 
+    // Maven build cache config written
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      path.join(tmpDir, '.mvn', 'maven-build-cache-config.xml'),
+      expect.stringContaining('http://127.0.0.1:5000'),
+    );
+
+    // Maven dependencies also restored via archive
     expect(execBoringCache).toHaveBeenCalledWith(
       expect.arrayContaining(['restore', 'myorg/myproject', expect.stringContaining('maven-deps')]),
       expect.anything(),
@@ -216,6 +231,7 @@ describe('Java restore/save round-trip', () => {
 
     expect(stateStore['buildTool']).toBe('maven');
     expect(stateStore['mavenTag']).toContain('maven-deps');
+    expect(stateStore['proxyPid']).toBe('54321');
 
     (execBoringCache as jest.Mock).mockClear();
 
@@ -230,7 +246,9 @@ describe('Java restore/save round-trip', () => {
     });
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    expect(stopRegistryProxy).not.toHaveBeenCalled();
+    // Proxy stopped in save phase
+    expect(stopRegistryProxy).toHaveBeenCalledWith(54321);
+    // Maven deps still saved via archive
     expect(execBoringCache).toHaveBeenCalledWith(
       expect.arrayContaining(['save', 'myorg/myproject', expect.stringContaining('maven-deps')]),
       expect.anything(),

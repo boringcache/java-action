@@ -47,7 +47,7 @@ async function run() {
         const proxyPid = core.getState('proxyPid');
         if (proxyPid) {
             await (0, utils_1.stopRegistryProxy)(parseInt(proxyPid, 10));
-            core.info('Gradle build cache proxy stopped');
+            core.info('Build cache proxy stopped');
         }
         if (!workspace) {
             core.info('No workspace found, skipping save');

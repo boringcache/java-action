@@ -10,7 +10,7 @@ inputs:
   cli-version:
     description: 'BoringCache CLI version (e.g., v1.0.0). Set to "skip" to disable automatic CLI setup.'
     required: false
-    default: 'v1.8.0'
+    default: 'v1.9.0'
   workspace:
     description: 'BoringCache workspace (e.g., "my-workspace" or "org/workspace")'
     required: false
@@ -30,7 +30,7 @@ inputs:
     required: false
     default: 'true'
   proxy-port:
-    description: 'Port for the BoringCache build cache proxy.'
+    description: 'Port for the BoringCache build cache proxy (Gradle and Maven).'
     required: false
     default: '5000'
   read-only:

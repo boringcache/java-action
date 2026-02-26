@@ -75,7 +75,7 @@ For pull request builds, use `read-only` to prevent pushing results while still 
 
 | Input | Default | Description |
 |-------|---------|-------------|
-| `cli-version` | `v1.8.0` | BoringCache CLI version. Set to `skip` to disable automatic setup. |
+| `cli-version` | `v1.9.0` | BoringCache CLI version. Set to `skip` to disable automatic setup. |
 | `workspace` | | BoringCache workspace (e.g., `my-org/my-project`). |
 | `cache-tag` | repo name | Cache tag prefix. |
 | `java-version` | `21` | Java version to install via mise. Auto-detected from `.java-version` or `.tool-versions`. |

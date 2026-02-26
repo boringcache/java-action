@@ -1,6 +1,6 @@
 {
   "name": "boringcache-java",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Setup Java via mise and Gradle/Maven build cache backed by BoringCache.",
   "main": "dist/restore/index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/exec": "^1.1.1",
-    "@boringcache/action-core": "^1.8.0"
+    "@boringcache/action-core": "^1.9.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

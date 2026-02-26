@@ -102,6 +102,24 @@ async function run() {
             core.info(`Gradle build cache configured at http://127.0.0.1:${proxy.port}/cache/`);
         }
         if (buildTool === 'maven') {
+            // Start proxy for Maven build cache (same as Gradle)
+            const proxy = await (0, utils_1.startRegistryProxy)({
+                command: 'cache-registry',
+                workspace,
+                tag: cacheTagPrefix,
+                host: '127.0.0.1',
+                port: proxyPort,
+                noGit: proxyNoGit,
+                noPlatform: proxyNoPlatform,
+                verbose,
+            });
+            await (0, utils_1.waitForProxy)(proxy.port, 20000, proxy.pid);
+            core.saveState('proxyPid', String(proxy.pid));
+            (0, utils_1.ensureMavenBuildCacheExtension)(workingDir);
+            (0, utils_1.writeMavenBuildCacheConfig)(workingDir, proxy.port, readOnly);
+            core.setOutput('proxy-port', String(proxy.port));
+            core.info(`Maven build cache configured at http://127.0.0.1:${proxy.port}/`);
+            // Also restore Maven dependency cache (archive-based)
             const mavenLocalRepo = (0, utils_1.getMavenLocalRepo)();
             const mavenTag = `${cacheTagPrefix}-maven-deps`;
             core.info('Restoring Maven dependencies...');
