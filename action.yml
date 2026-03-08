@@ -10,7 +10,7 @@ inputs:
   cli-version:
     description: 'BoringCache CLI version (e.g., v1.0.0). Set to "skip" to disable automatic CLI setup.'
     required: false
-    default: 'v1.10.7'
+    default: 'v1.10.8'
   workspace:
     description: 'BoringCache workspace (e.g., "my-workspace" or "org/workspace")'
     required: false
