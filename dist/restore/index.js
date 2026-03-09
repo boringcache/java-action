@@ -42276,7 +42276,7 @@ async function run() {
                 noPlatform: proxyNoPlatform,
                 verbose,
             });
-            await (0, utils_1.waitForProxy)(proxy.port, 20000, proxy.pid);
+            await (0, utils_1.waitForProxy)(proxy.port, undefined, proxy.pid);
             core.saveState('proxyPid', String(proxy.pid));
             (0, utils_1.writeGradleInitScript)(gradleHome, proxy.port, readOnly);
             if (enableBuildCache) {
@@ -42297,7 +42297,7 @@ async function run() {
                 noPlatform: proxyNoPlatform,
                 verbose,
             });
-            await (0, utils_1.waitForProxy)(proxy.port, 20000, proxy.pid);
+            await (0, utils_1.waitForProxy)(proxy.port, undefined, proxy.pid);
             core.saveState('proxyPid', String(proxy.pid));
             (0, utils_1.ensureMavenBuildCacheExtension)(workingDir);
             (0, utils_1.writeMavenBuildCacheConfig)(workingDir, proxy.port, readOnly);

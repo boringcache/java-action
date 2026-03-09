@@ -143,7 +143,7 @@ describe('Java restore/save round-trip', () => {
       host: '127.0.0.1',
       port: 5000,
     }));
-    expect(waitForProxy).toHaveBeenCalledWith(5000, 20000, 54321);
+    expect(waitForProxy).toHaveBeenCalledWith(5000, undefined, 54321);
 
     expect(fs.mkdirSync).toHaveBeenCalledWith(
       path.join(gradleHome, 'init.d'),
@@ -215,7 +215,7 @@ describe('Java restore/save round-trip', () => {
       host: '127.0.0.1',
       port: 5000,
     }));
-    expect(waitForProxy).toHaveBeenCalledWith(5000, 20000, 54321);
+    expect(waitForProxy).toHaveBeenCalledWith(5000, undefined, 54321);
 
     // Maven build cache config written
     expect(fs.writeFileSync).toHaveBeenCalledWith(
