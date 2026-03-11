@@ -42600,8 +42600,11 @@ async function resolveJavaHome(miseId) {
     });
     const javaHomeMatch = envOutput.match(/export JAVA_HOME="?([^"\n]+)"?/);
     if (javaHomeMatch) {
-        core.info(`Resolved JAVA_HOME from mise env: ${javaHomeMatch[1]}`);
-        return javaHomeMatch[1];
+        const miseJavaHome = javaHomeMatch[1];
+        core.info(`mise env JAVA_HOME: ${miseJavaHome}`);
+        const validated = findJavaHome(miseJavaHome);
+        core.info(`Validated JAVA_HOME: ${validated}`);
+        return validated;
     }
     let whereOutput = '';
     await exec.exec(misePath, ['where', `java@${miseId}`], {
