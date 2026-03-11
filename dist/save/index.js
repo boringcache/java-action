@@ -42590,21 +42590,58 @@ async function activateJava(miseId) {
 }
 async function resolveJavaHome(miseId) {
     const misePath = getMiseBinPath();
-    let output = '';
-    await exec.exec(misePath, ['where', `java@${miseId}`], {
+    let envOutput = '';
+    await exec.exec(misePath, ['env', '-s', 'bash', `java@${miseId}`], {
         silent: true,
         listeners: {
-            stdout: (data) => { output += data.toString(); },
+            stdout: (data) => { envOutput += data.toString(); },
         },
         ignoreReturnCode: true,
     });
-    const installDir = output.trim();
+    const javaHomeMatch = envOutput.match(/export JAVA_HOME="?([^"\n]+)"?/);
+    if (javaHomeMatch) {
+        core.info(`Resolved JAVA_HOME from mise env: ${javaHomeMatch[1]}`);
+        return javaHomeMatch[1];
+    }
+    let whereOutput = '';
+    await exec.exec(misePath, ['where', `java@${miseId}`], {
+        silent: true,
+        listeners: {
+            stdout: (data) => { whereOutput += data.toString(); },
+        },
+        ignoreReturnCode: true,
+    });
+    const installDir = whereOutput.trim();
     if (!installDir)
         return '';
+    core.info(`mise where returned: ${installDir}`);
+    return findJavaHome(installDir);
+}
+function findJavaHome(installDir) {
+    const javaBin = isWindows ? 'java.exe' : 'java';
+    if (fs.existsSync(path.join(installDir, 'bin', javaBin))) {
+        return installDir;
+    }
     const contentsHome = path.join(installDir, 'Contents', 'Home');
-    if (fs.existsSync(path.join(contentsHome, 'bin', 'java'))) {
+    if (fs.existsSync(path.join(contentsHome, 'bin', javaBin))) {
         return contentsHome;
     }
+    try {
+        const entries = fs.readdirSync(installDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory())
+                continue;
+            const nested = path.join(installDir, entry.name);
+            if (fs.existsSync(path.join(nested, 'bin', javaBin))) {
+                return nested;
+            }
+            const nestedContents = path.join(nested, 'Contents', 'Home');
+            if (fs.existsSync(path.join(nestedContents, 'bin', javaBin))) {
+                return nestedContents;
+            }
+        }
+    }
+    catch { }
     return installDir;
 }
 async function configureJavaEnv(miseId) {
