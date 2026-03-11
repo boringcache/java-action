@@ -42598,7 +42598,14 @@ async function resolveJavaHome(miseId) {
         },
         ignoreReturnCode: true,
     });
-    return output.trim();
+    const installDir = output.trim();
+    if (!installDir)
+        return '';
+    const contentsHome = path.join(installDir, 'Contents', 'Home');
+    if (fs.existsSync(path.join(contentsHome, 'bin', 'java'))) {
+        return contentsHome;
+    }
+    return installDir;
 }
 async function configureJavaEnv(miseId) {
     const javaHome = await resolveJavaHome(miseId);

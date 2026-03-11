@@ -158,7 +158,15 @@ export async function resolveJavaHome(miseId: string): Promise<string> {
     },
     ignoreReturnCode: true,
   });
-  return output.trim();
+  const installDir = output.trim();
+  if (!installDir) return '';
+
+  const contentsHome = path.join(installDir, 'Contents', 'Home');
+  if (fs.existsSync(path.join(contentsHome, 'bin', 'java'))) {
+    return contentsHome;
+  }
+
+  return installDir;
 }
 
 export async function configureJavaEnv(miseId: string): Promise<void> {
