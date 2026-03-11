@@ -1,0 +1,200 @@
+name: Java Setup Benchmark
+
+on:
+  workflow_dispatch:
+
+env:
+  BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+
+jobs:
+  java-actions-cache:
+    name: "Baseline: actions/setup-java + actions/cache"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - name: Create Gradle project
+        run: |
+          mkdir -p test-project/src/main/java/com/example
+          cat > test-project/settings.gradle << 'GRADLE'
+          rootProject.name = 'benchmark-project'
+          GRADLE
+          cat > test-project/build.gradle << 'GRADLE'
+          plugins {
+            id 'java'
+            id 'application'
+          }
+          java { sourceCompatibility = JavaVersion.VERSION_21 }
+          repositories { mavenCentral() }
+          dependencies {
+            implementation 'com.google.guava:guava:33.4.0-jre'
+            implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+            implementation 'org.slf4j:slf4j-api:2.0.16'
+            implementation 'ch.qos.logback:logback-classic:1.5.15'
+            testImplementation 'junit:junit:4.13.2'
+          }
+          application { mainClass = 'com.example.Main' }
+          GRADLE
+          cat > test-project/src/main/java/com/example/Main.java << 'JAVA'
+          package com.example;
+          import com.google.common.collect.ImmutableList;
+          import com.fasterxml.jackson.databind.ObjectMapper;
+          public class Main {
+            public static void main(String[] args) throws Exception {
+              var list = ImmutableList.of("hello", "world");
+              var mapper = new ObjectMapper();
+              System.out.println(mapper.writeValueAsString(list));
+            }
+          }
+          JAVA
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-benchmark-${{ runner.os }}-${{ hashFiles('test-project/**/*.gradle') }}
+          restore-keys: gradle-benchmark-${{ runner.os }}-
+
+      - name: Gradle build
+        working-directory: test-project
+        run: |
+          gradle wrapper --gradle-version 8.12
+          START_TIME=$(date +%s%N)
+          ./gradlew build --no-daemon -q
+          END_TIME=$(date +%s%N)
+          DURATION=$(( (END_TIME - START_TIME) / 1000000 ))
+          echo "actions/setup-java Gradle build - Run ${{ matrix.run }}: ${DURATION}ms"
+          mkdir -p benchmark-results
+          echo "${DURATION}" > benchmark-results/actions-cache-run${{ matrix.run }}.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: actions-cache-results-${{ matrix.run }}
+          path: test-project/benchmark-results/
+
+  java-boringcache:
+    name: "Test: boringcache/java"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        run: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Gradle project
+        run: |
+          mkdir -p test-project/src/main/java/com/example
+          cat > test-project/settings.gradle << 'GRADLE'
+          rootProject.name = 'benchmark-project'
+          GRADLE
+          cat > test-project/build.gradle << 'GRADLE'
+          plugins {
+            id 'java'
+            id 'application'
+          }
+          java { sourceCompatibility = JavaVersion.VERSION_21 }
+          repositories { mavenCentral() }
+          dependencies {
+            implementation 'com.google.guava:guava:33.4.0-jre'
+            implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+            implementation 'org.slf4j:slf4j-api:2.0.16'
+            implementation 'ch.qos.logback:logback-classic:1.5.15'
+            testImplementation 'junit:junit:4.13.2'
+          }
+          application { mainClass = 'com.example.Main' }
+          GRADLE
+          cat > test-project/src/main/java/com/example/Main.java << 'JAVA'
+          package com.example;
+          import com.google.common.collect.ImmutableList;
+          import com.fasterxml.jackson.databind.ObjectMapper;
+          public class Main {
+            public static void main(String[] args) throws Exception {
+              var list = ImmutableList.of("hello", "world");
+              var mapper = new ObjectMapper();
+              System.out.println(mapper.writeValueAsString(list));
+            }
+          }
+          JAVA
+
+      - name: Setup Java with boringcache
+        uses: ./
+        with:
+          workspace: boringcache/actions
+          java-version: '21'
+          distribution: temurin
+          working-directory: test-project
+
+      - name: Gradle build
+        working-directory: test-project
+        run: |
+          gradle wrapper --gradle-version 8.12
+          START_TIME=$(date +%s%N)
+          ./gradlew build --no-daemon -q
+          END_TIME=$(date +%s%N)
+          DURATION=$(( (END_TIME - START_TIME) / 1000000 ))
+          echo "boringcache/java Gradle build - Run ${{ matrix.run }}: ${DURATION}ms"
+          mkdir -p benchmark-results
+          echo "${DURATION}" > benchmark-results/boringcache-run${{ matrix.run }}.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boringcache-results-${{ matrix.run }}
+          path: test-project/benchmark-results/
+
+  benchmark-summary:
+    name: Generate Summary
+    runs-on: ubuntu-latest
+    needs: [java-actions-cache, java-boringcache]
+    if: always()
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-results-*"
+          merge-multiple: true
+
+      - name: Generate summary
+        run: |
+          echo "# Java Setup Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Gradle Build Times" >> $GITHUB_STEP_SUMMARY
+          echo "| Run | actions/setup-java + actions/cache | boringcache/java | Improvement |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-----------------------------------|-----------------|-------------|" >> $GITHUB_STEP_SUMMARY
+
+          for run in 1 2 3; do
+            if [[ -f "actions-cache-run${run}.txt" && -f "boringcache-run${run}.txt" ]]; then
+              a=$(cat "actions-cache-run${run}.txt")
+              b=$(cat "boringcache-run${run}.txt")
+              if [[ $b -gt 0 ]]; then
+                imp=$(echo "scale=2; $a / $b" | bc -l)
+              else
+                imp="N/A"
+              fi
+              echo "| $run | ${a}ms | ${b}ms | ${imp}x |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $run | Missing | Missing | N/A |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Summary" >> $GITHUB_STEP_SUMMARY
+
+          if [[ -f actions-cache-run1.txt && -f actions-cache-run2.txt && -f actions-cache-run3.txt && \
+                -f boringcache-run1.txt && -f boringcache-run2.txt && -f boringcache-run3.txt ]]; then
+            aa=$(( ($(cat actions-cache-run1.txt)+$(cat actions-cache-run2.txt)+$(cat actions-cache-run3.txt))/3 ))
+            bb=$(( ($(cat boringcache-run1.txt)+$(cat boringcache-run2.txt)+$(cat boringcache-run3.txt))/3 ))
+            if [[ $bb -gt 0 ]]; then
+              imp=$(echo "scale=2; $aa / $bb" | bc -l)
+            else
+              imp="N/A"
+            fi
+            echo "- **actions/setup-java + actions/cache average**: ${aa}ms" >> $GITHUB_STEP_SUMMARY
+            echo "- **boringcache/java average**: ${bb}ms" >> $GITHUB_STEP_SUMMARY
+            echo "- **Improvement**: ${imp}x" >> $GITHUB_STEP_SUMMARY
+          fi

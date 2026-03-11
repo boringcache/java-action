@@ -126,19 +126,50 @@ async function installMiseWindows(): Promise<void> {
   }
 }
 
-export async function installJava(version: string): Promise<void> {
-  core.info(`Installing Java ${version} via mise...`);
-  const misePath = getMiseBinPath();
-
-  await exec.exec(misePath, ['install', `java@${version}`]);
-  await exec.exec(misePath, ['use', '-g', `java@${version}`]);
+export function resolveJavaMiseId(version: string, distribution: string): string {
+  const hasPrefix = /^[a-zA-Z]/.test(version) && version.includes('-');
+  if (hasPrefix) return version;
+  if (distribution) return `${distribution}-${version}`;
+  return version;
 }
 
-export async function activateJava(version: string): Promise<void> {
-  core.info(`Activating Java ${version}...`);
+export async function installJava(miseId: string): Promise<void> {
+  core.info(`Installing Java ${miseId} via mise...`);
   const misePath = getMiseBinPath();
 
-  await exec.exec(misePath, ['use', '-g', `java@${version}`]);
+  await exec.exec(misePath, ['install', `java@${miseId}`]);
+  await exec.exec(misePath, ['use', '-g', `java@${miseId}`]);
+}
+
+export async function activateJava(miseId: string): Promise<void> {
+  core.info(`Activating Java ${miseId}...`);
+  const misePath = getMiseBinPath();
+
+  await exec.exec(misePath, ['use', '-g', `java@${miseId}`]);
+}
+
+export async function resolveJavaHome(miseId: string): Promise<string> {
+  const misePath = getMiseBinPath();
+  let output = '';
+  await exec.exec(misePath, ['where', `java@${miseId}`], {
+    silent: true,
+    listeners: {
+      stdout: (data: Buffer) => { output += data.toString(); },
+    },
+    ignoreReturnCode: true,
+  });
+  return output.trim();
+}
+
+export async function configureJavaEnv(miseId: string): Promise<void> {
+  const javaHome = await resolveJavaHome(miseId);
+  if (!javaHome) {
+    core.warning('Could not resolve JAVA_HOME from mise');
+    return;
+  }
+  core.exportVariable('JAVA_HOME', javaHome);
+  core.addPath(path.join(javaHome, 'bin'));
+  core.info(`JAVA_HOME=${javaHome}`);
 }
 
 export async function getJavaVersion(inputVersion: string, workingDir: string): Promise<string> {
@@ -162,7 +193,25 @@ export async function getJavaVersion(inputVersion: string, workingDir: string): 
     }
   } catch {}
 
+  const miseVersion = await readMiseTomlVersion(workingDir, 'java');
+  if (miseVersion) return miseVersion;
+
   return '21';
+}
+
+export async function readMiseTomlVersion(workingDir: string, toolName: string): Promise<string | null> {
+  const miseToml = path.join(workingDir, 'mise.toml');
+  try {
+    const content = await fs.promises.readFile(miseToml, 'utf-8');
+    const toolsMatch = content.match(/\[tools\]([\s\S]*?)(?:\n\[|$)/);
+    if (toolsMatch) {
+      const versionMatch = toolsMatch[1].match(
+        new RegExp(`^\\s*${toolName}\\s*=\\s*["']([^"']+)["']`, 'm')
+      );
+      if (versionMatch) return versionMatch[1];
+    }
+  } catch {}
+  return null;
 }
 
 export function getMavenLocalRepo(): string {
@@ -270,6 +319,31 @@ export function ensureMavenBuildCacheExtension(workingDir: string): void {
     fs.writeFileSync(extensionsPath, xml);
     core.info(`Created ${extensionsPath} with Maven Build Cache Extension`);
   }
+}
+
+export function writeMavenSettings(serverId: string, serverUsername: string, serverPassword: string): void {
+  const m2Dir = path.join(os.homedir(), '.m2');
+  fs.mkdirSync(m2Dir, { recursive: true });
+
+  if (serverPassword) core.setSecret(serverPassword);
+  if (serverUsername) core.setSecret(serverUsername);
+
+  const settingsPath = path.join(m2Dir, 'settings.xml');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+    <server>
+      <id>${serverId}</id>
+      <username>\${env.${serverUsername}}</username>
+      <password>\${env.${serverPassword}}</password>
+    </server>
+  </servers>
+</settings>
+`;
+  fs.writeFileSync(settingsPath, xml);
+  core.info(`Wrote Maven settings.xml with server '${serverId}'`);
 }
 
 export function writeMavenBuildCacheConfig(workingDir: string, port: number, readOnly: boolean): void {

@@ -71,8 +71,11 @@ jobs:
           set -euo pipefail
           java --version
           echo "java-version: ${{ steps.java.outputs.java-version }}"
+          echo "java-home: ${{ steps.java.outputs.java-home }}"
           echo "cache-hit: ${{ steps.java.outputs.cache-hit }}"
           echo "proxy-port: ${{ steps.java.outputs.proxy-port }}"
+          [[ -n "$JAVA_HOME" ]] || { echo "JAVA_HOME not set"; exit 1; }
+          [[ -x "$JAVA_HOME/bin/java" ]] || { echo "java not found in JAVA_HOME"; exit 1; }
 
       - name: Build with Gradle
         working-directory: test-project
@@ -142,6 +145,7 @@ jobs:
           set -euo pipefail
           java --version
           echo "java-version: ${{ steps.java.outputs.java-version }}"
+          [[ -n "$JAVA_HOME" ]] || { echo "JAVA_HOME not set"; exit 1; }
 
       - name: Install Maven
         run: |
@@ -184,3 +188,40 @@ jobs:
           set -euo pipefail
           java --version
           echo "Installed: ${{ steps.java.outputs.java-version }}"
+          [[ -n "$JAVA_HOME" ]] || { echo "JAVA_HOME not set"; exit 1; }
+
+  test-distribution:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '21'
+            distribution: 'temurin'
+          - version: '21'
+            distribution: 'corretto'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: boringcache/nodejs-action@v1
+        with:
+          node-version: '22'
+          workspace: boringcache/actions
+      - run: npm install
+      - run: npm run build
+
+      - name: Setup Java ${{ matrix.distribution }}-${{ matrix.version }}
+        id: java
+        uses: ./
+        with:
+          workspace: boringcache/actions
+          java-version: ${{ matrix.version }}
+          distribution: ${{ matrix.distribution }}
+
+      - name: Verify distribution
+        run: |
+          set -euo pipefail
+          java --version
+          echo "JAVA_HOME=$JAVA_HOME"
+          [[ -n "$JAVA_HOME" ]] || { echo "JAVA_HOME not set"; exit 1; }
+          [[ -x "$JAVA_HOME/bin/java" ]] || { echo "java not found in JAVA_HOME"; exit 1; }

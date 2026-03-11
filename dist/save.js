@@ -42,7 +42,7 @@ async function run() {
         const cacheJava = core.getInput('cache-java') !== 'false' && core.getState('cacheJava') !== 'false';
         const verbose = core.getState('verbose') === 'true';
         const exclude = core.getInput('exclude');
-        const javaVersion = core.getState('javaVersion');
+        const javaMiseId = core.getState('javaMiseId');
         const cacheTagPrefix = core.getState('cacheTagPrefix');
         const buildTool = core.getState('buildTool');
         const proxyPid = core.getState('proxyPid');
@@ -59,9 +59,9 @@ async function run() {
             return;
         }
         core.info('Saving to BoringCache...');
-        if (cacheJava && javaVersion && cacheTagPrefix) {
+        if (cacheJava && javaMiseId && cacheTagPrefix) {
             const miseDataDir = (0, utils_1.getMiseDataDir)();
-            const javaTag = `${cacheTagPrefix}-java-${javaVersion}`;
+            const javaTag = `${cacheTagPrefix}-java-${javaMiseId}`;
             core.info(`Saving Java installation [${javaTag}]...`);
             const args = ['save', workspace, `${javaTag}:${miseDataDir}`];
             if (verbose)

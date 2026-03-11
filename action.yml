@@ -19,8 +19,12 @@ inputs:
     required: false
     default: ''
   java-version:
-    description: 'Java version to install via mise (e.g., "21", "17"). Auto-detected from .java-version or .tool-versions if not specified.'
+    description: 'Java version to install via mise (e.g., "21", "17"). Auto-detected from .java-version, .tool-versions, or mise.toml if not specified.'
     required: false
+  distribution:
+    description: 'JDK distribution (e.g., temurin, corretto, zulu, liberica, oracle, graalvm, semeru, dragonwell). Defaults to mise default (OpenJDK).'
+    required: false
+    default: ''
   working-directory:
     description: 'Working directory for the project'
     required: false
@@ -60,6 +64,17 @@ inputs:
   exclude:
     description: 'Glob pattern to exclude files from cache digest'
     required: false
+  server-id:
+    description: 'Server ID for Maven settings.xml (e.g., "ossrh", "github"). When set, generates ~/.m2/settings.xml.'
+    required: false
+  server-username:
+    description: 'Environment variable name for Maven server username (default: GITHUB_ACTOR)'
+    required: false
+    default: 'GITHUB_ACTOR'
+  server-password:
+    description: 'Environment variable name for Maven server password/token (default: GITHUB_TOKEN)'
+    required: false
+    default: 'GITHUB_TOKEN'
   save-always:
     description: 'Save cache even if the job fails'
     required: false
@@ -78,6 +93,8 @@ outputs:
     description: 'Whether the Java installation cache was restored'
   proxy-port:
     description: 'Proxy port used.'
+  java-home:
+    description: 'Path to the Java home directory (JAVA_HOME)'
 
 runs:
   using: 'node24'

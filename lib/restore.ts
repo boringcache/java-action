@@ -10,6 +10,8 @@ import {
   installMise,
   installJava,
   activateJava,
+  configureJavaEnv,
+  resolveJavaMiseId,
   getJavaVersion,
   detectBuildTool,
   getMavenLocalRepo,
@@ -21,6 +23,7 @@ import {
   enableGradleBuildCache,
   ensureMavenBuildCacheExtension,
   writeMavenBuildCacheConfig,
+  writeMavenSettings,
 } from './utils';
 
 async function run(): Promise<void> {
@@ -29,6 +32,7 @@ async function run(): Promise<void> {
     const workspace = getWorkspace(core.getInput('workspace') || '');
     const cacheTagPrefix = getCacheTagPrefix(core.getInput('cache-tag') || '');
     const inputJavaVersion = core.getInput('java-version');
+    const distribution = core.getInput('distribution') || '';
     const workingDir = core.getInput('working-directory') || process.cwd();
     const cacheJava = core.getInput('cache-java') !== 'false';
     const proxyPort = parseInt(core.getInput('proxy-port') || '0', 10) || await findAvailablePort();
@@ -38,13 +42,18 @@ async function run(): Promise<void> {
     const proxyNoGit = parseBoolean(core.getInput('proxy-no-git'), false);
     const proxyNoPlatform = parseBoolean(core.getInput('proxy-no-platform'), false);
     const verbose = parseBoolean(core.getInput('verbose'), false);
+    const serverId = core.getInput('server-id') || '';
+    const serverUsername = core.getInput('server-username') || 'GITHUB_ACTOR';
+    const serverPassword = core.getInput('server-password') || 'GITHUB_TOKEN';
 
     const javaVersion = await getJavaVersion(inputJavaVersion, workingDir);
+    const javaMiseId = resolveJavaMiseId(javaVersion, distribution);
     const buildTool = await detectBuildTool(workingDir);
 
     core.saveState('workspace', workspace);
     core.saveState('cacheTagPrefix', cacheTagPrefix);
     core.saveState('javaVersion', javaVersion);
+    core.saveState('javaMiseId', javaMiseId);
     core.saveState('workingDir', workingDir);
     core.saveState('cacheJava', cacheJava.toString());
     core.saveState('buildTool', buildTool);
@@ -55,11 +64,11 @@ async function run(): Promise<void> {
     }
 
     const miseDataDir = getMiseDataDir();
-    const javaTag = `${cacheTagPrefix}-java-${javaVersion}`;
+    const javaTag = `${cacheTagPrefix}-java-${javaMiseId}`;
 
     let javaCacheHit = false;
     if (cacheJava) {
-      core.info(`Restoring Java ${javaVersion}...`);
+      core.info(`Restoring Java ${javaMiseId}...`);
       const args = ['restore', workspace, `${javaTag}:${miseDataDir}`];
       if (verbose) args.push('--verbose');
       const result = await execBoringCache(args);
@@ -70,9 +79,15 @@ async function run(): Promise<void> {
     await installMise();
 
     if (javaCacheHit) {
-      await activateJava(javaVersion);
+      await activateJava(javaMiseId);
     } else {
-      await installJava(javaVersion);
+      await installJava(javaMiseId);
+    }
+
+    await configureJavaEnv(javaMiseId);
+
+    if (serverId) {
+      writeMavenSettings(serverId, serverUsername, serverPassword);
     }
 
     if (buildTool === 'gradle') {
@@ -141,10 +156,11 @@ async function run(): Promise<void> {
 
     core.setOutput('workspace', workspace);
     core.setOutput('java-version', javaVersion);
+    core.setOutput('java-home', process.env.JAVA_HOME || '');
     core.setOutput('cache-tag', cacheTagPrefix);
     core.setOutput('cache-hit', javaCacheHit.toString());
 
-    core.info(`Java ${javaVersion} setup complete (build tool: ${buildTool})`);
+    core.info(`Java ${javaMiseId} setup complete (build tool: ${buildTool})`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);

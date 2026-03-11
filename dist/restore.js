@@ -42,6 +42,7 @@ async function run() {
         const workspace = (0, utils_1.getWorkspace)(core.getInput('workspace') || '');
         const cacheTagPrefix = (0, utils_1.getCacheTagPrefix)(core.getInput('cache-tag') || '');
         const inputJavaVersion = core.getInput('java-version');
+        const distribution = core.getInput('distribution') || '';
         const workingDir = core.getInput('working-directory') || process.cwd();
         const cacheJava = core.getInput('cache-java') !== 'false';
         const proxyPort = parseInt(core.getInput('proxy-port') || '0', 10) || await (0, utils_1.findAvailablePort)();
@@ -51,11 +52,16 @@ async function run() {
         const proxyNoGit = (0, utils_1.parseBoolean)(core.getInput('proxy-no-git'), false);
         const proxyNoPlatform = (0, utils_1.parseBoolean)(core.getInput('proxy-no-platform'), false);
         const verbose = (0, utils_1.parseBoolean)(core.getInput('verbose'), false);
+        const serverId = core.getInput('server-id') || '';
+        const serverUsername = core.getInput('server-username') || 'GITHUB_ACTOR';
+        const serverPassword = core.getInput('server-password') || 'GITHUB_TOKEN';
         const javaVersion = await (0, utils_1.getJavaVersion)(inputJavaVersion, workingDir);
+        const javaMiseId = (0, utils_1.resolveJavaMiseId)(javaVersion, distribution);
         const buildTool = await (0, utils_1.detectBuildTool)(workingDir);
         core.saveState('workspace', workspace);
         core.saveState('cacheTagPrefix', cacheTagPrefix);
         core.saveState('javaVersion', javaVersion);
+        core.saveState('javaMiseId', javaMiseId);
         core.saveState('workingDir', workingDir);
         core.saveState('cacheJava', cacheJava.toString());
         core.saveState('buildTool', buildTool);
@@ -64,10 +70,10 @@ async function run() {
             await (0, utils_1.ensureBoringCache)({ version: cliVersion });
         }
         const miseDataDir = (0, utils_1.getMiseDataDir)();
-        const javaTag = `${cacheTagPrefix}-java-${javaVersion}`;
+        const javaTag = `${cacheTagPrefix}-java-${javaMiseId}`;
         let javaCacheHit = false;
         if (cacheJava) {
-            core.info(`Restoring Java ${javaVersion}...`);
+            core.info(`Restoring Java ${javaMiseId}...`);
             const args = ['restore', workspace, `${javaTag}:${miseDataDir}`];
             if (verbose)
                 args.push('--verbose');
@@ -77,10 +83,14 @@ async function run() {
         }
         await (0, utils_1.installMise)();
         if (javaCacheHit) {
-            await (0, utils_1.activateJava)(javaVersion);
+            await (0, utils_1.activateJava)(javaMiseId);
         }
         else {
-            await (0, utils_1.installJava)(javaVersion);
+            await (0, utils_1.installJava)(javaMiseId);
+        }
+        await (0, utils_1.configureJavaEnv)(javaMiseId);
+        if (serverId) {
+            (0, utils_1.writeMavenSettings)(serverId, serverUsername, serverPassword);
         }
         if (buildTool === 'gradle') {
             const proxy = await (0, utils_1.startRegistryProxy)({
@@ -139,9 +149,10 @@ async function run() {
         }
         core.setOutput('workspace', workspace);
         core.setOutput('java-version', javaVersion);
+        core.setOutput('java-home', process.env.JAVA_HOME || '');
         core.setOutput('cache-tag', cacheTagPrefix);
         core.setOutput('cache-hit', javaCacheHit.toString());
-        core.info(`Java ${javaVersion} setup complete (build tool: ${buildTool})`);
+        core.info(`Java ${javaMiseId} setup complete (build tool: ${buildTool})`);
     }
     catch (error) {
         if (error instanceof Error) {
