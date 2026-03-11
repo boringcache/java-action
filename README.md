@@ -1,112 +1,53 @@
 # boringcache/java-action
 
-**Cache once. Reuse everywhere.**
+Set up Java via mise and cache Gradle or Maven builds with BoringCache.
 
-Setup Java via mise and cache Gradle build cache + Maven dependencies with BoringCache.
+Gradle uses a local HTTP build-cache proxy. Maven restores and saves dependency archives.
 
 ## Quick start
-
-### Gradle
 
 ```yaml
 - uses: boringcache/java-action@v1
   with:
     workspace: my-org/my-project
+    read-only: ${{ github.event_name == 'pull_request' }}
   env:
-    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
+    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
+    BORINGCACHE_SAVE_TOKEN: ${{ github.event_name == 'pull_request' && '' || secrets.BORINGCACHE_SAVE_TOKEN }}
 
 - run: ./gradlew build
 ```
 
-### Maven
+## What it caches
 
-```yaml
-- uses: boringcache/java-action@v1
-  with:
-    workspace: my-org/my-project
-  env:
-    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
+- Java from `.java-version` or `.tool-versions` (fallback: `21`).
+- The Java installation under mise.
+- Gradle build-cache traffic through a local proxy.
+- Maven dependencies from `~/.m2/repository`.
 
-- run: mvn package
-```
+## Key inputs
 
-## How it works
-
-1. **Main step**: Installs Java via mise, detects your build tool (Gradle or Maven), and sets up caching accordingly.
-2. **Gradle projects**: Starts a local HTTP build cache proxy and writes a Gradle init script to `~/.gradle/init.d/`. Gradle reads and writes cache entries through the proxy using its native HTTP Build Cache protocol.
-3. **Maven projects**: Restores cached `~/.m2/repository` dependencies from BoringCache.
-4. **Post step**: Stops the Gradle proxy (if running) and saves caches.
-
-## Build tool detection
-
-The action auto-detects your build tool from the working directory:
-
-| Files detected | Build tool | Caching strategy |
-|---------------|-----------|-----------------|
-| `settings.gradle`, `build.gradle`, `*.kts` variants | Gradle | HTTP build cache proxy |
-| `pom.xml` | Maven | Archive-based dependency cache |
-| Neither | None | Java installation only |
-
-Gradle takes priority if both are present.
-
-## Java distribution
-
-Java is installed via [mise](https://mise.jdx.dev/) which uses Eclipse Temurin (Adoptium) by default. Version detection priority:
-
-1. `java-version` input
-2. `.java-version` file in working directory
-3. `.tool-versions` file (asdf/mise format)
-4. Fallback: `21`
-
-## Read-only mode
-
-For pull request builds, use `read-only` with a restore-capable token to prevent pushing results while still benefiting from cache hits. Trusted branch/tag jobs can also provide `BORINGCACHE_SAVE_TOKEN`. The recommended pattern auto-detects based on branch:
-
-```yaml
-- uses: boringcache/java-action@v1
-  with:
-    workspace: my-org/my-project
-    read-only: ${{ github.ref_name != github.event.repository.default_branch }}
-  env:
-    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-    BORINGCACHE_SAVE_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && secrets.BORINGCACHE_SAVE_TOKEN || '' }}
-```
-
-## Inputs
-
-| Input | Default | Description |
-|-------|---------|-------------|
-| `cli-version` | `v1.12.1` | BoringCache CLI version. Set to `skip` to disable automatic setup. |
-| `workspace` | | BoringCache workspace (e.g., `my-org/my-project`). |
-| `cache-tag` | repo name | Cache tag prefix. |
-| `java-version` | `21` | Java version to install via mise. Auto-detected from `.java-version` or `.tool-versions`. |
-| `working-directory` | `.` | Working directory for build tool detection. |
-| `cache-java` | `true` | Cache Java installation from mise. |
-| `proxy-port` | `5000` | Port for the Gradle build cache proxy. |
-| `read-only` | `false` | Don't push Gradle build results (useful for PRs). |
-| `gradle-home` | `~/.gradle` | Gradle user home directory. |
-| `enable-build-cache` | `true` | Set `org.gradle.caching=true` in `gradle.properties`. |
-| `proxy-no-git` | `false` | Pass `--no-git` to the proxy. |
-| `proxy-no-platform` | `false` | Pass `--no-platform` to the proxy. |
-| `verbose` | `false` | Enable verbose CLI output. |
-| `exclude` | | Glob pattern to exclude files from cache digest. |
-| `save-always` | `false` | Save cache even if the job fails. |
+| Input | Description |
+|-------|-------------|
+| `workspace` | Workspace in `org/repo` form. |
+| `java-version` | Override the detected Java version. |
+| `read-only` | Disable remote writes on PRs or other low-trust jobs. |
+| `proxy-port` | Port for the local Gradle/Maven proxy. |
+| `cache-java` | Cache the Java installation from mise. |
+| `working-directory` | Project directory to inspect. |
+| `save-always` | Save archive-backed caches even if the job fails. |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `workspace` | Resolved workspace name. |
 | `java-version` | Installed Java version. |
-| `cache-tag` | Cache tag prefix used. |
 | `cache-hit` | Whether any cache was restored. |
-| `java-cache-hit` | Whether the Java installation cache was restored. |
-| `proxy-port` | Gradle build cache proxy port. |
+| `java-cache-hit` | Whether the Java runtime cache was restored. |
+| `proxy-port` | Proxy port in use. |
+| `workspace` | Resolved workspace name. |
 
-## Environment variables
+## Docs
 
-| Variable | Description |
-|----------|-------------|
-| `BORINGCACHE_RESTORE_TOKEN` | Restore-capable token for pull requests and other read-only jobs |
-| `BORINGCACHE_SAVE_TOKEN` | Save-capable token for trusted jobs that should publish cache updates |
-| `BORINGCACHE_DEFAULT_WORKSPACE` | Default workspace if not specified in inputs |
+- [Language actions docs](https://boringcache.com/docs#language-actions)
+- [GitHub Actions auth and trust model](https://boringcache.com/docs#actions-auth)
