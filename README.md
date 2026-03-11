@@ -13,7 +13,7 @@ Setup Java via mise and cache Gradle build cache + Maven dependencies with Borin
   with:
     workspace: my-org/my-project
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
 
 - run: ./gradlew build
 ```
@@ -25,7 +25,7 @@ Setup Java via mise and cache Gradle build cache + Maven dependencies with Borin
   with:
     workspace: my-org/my-project
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
 
 - run: mvn package
 ```
@@ -60,7 +60,7 @@ Java is installed via [mise](https://mise.jdx.dev/) which uses Eclipse Temurin (
 
 ## Read-only mode
 
-For pull request builds, use `read-only` to prevent pushing results while still benefiting from cache hits. The recommended pattern auto-detects based on branch:
+For pull request builds, use `read-only` with a restore-capable token to prevent pushing results while still benefiting from cache hits. Trusted branch/tag jobs can also provide `BORINGCACHE_SAVE_TOKEN`. The recommended pattern auto-detects based on branch:
 
 ```yaml
 - uses: boringcache/java-action@v1
@@ -68,7 +68,8 @@ For pull request builds, use `read-only` to prevent pushing results while still 
     workspace: my-org/my-project
     read-only: ${{ github.ref_name != github.event.repository.default_branch }}
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
+    BORINGCACHE_SAVE_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && secrets.BORINGCACHE_SAVE_TOKEN || '' }}
 ```
 
 ## Inputs
@@ -101,3 +102,11 @@ For pull request builds, use `read-only` to prevent pushing results while still 
 | `cache-hit` | Whether any cache was restored. |
 | `java-cache-hit` | Whether the Java installation cache was restored. |
 | `proxy-port` | Gradle build cache proxy port. |
+
+## Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `BORINGCACHE_RESTORE_TOKEN` | Restore-capable token for pull requests and other read-only jobs |
+| `BORINGCACHE_SAVE_TOKEN` | Save-capable token for trusted jobs that should publish cache updates |
+| `BORINGCACHE_DEFAULT_WORKSPACE` | Default workspace if not specified in inputs |

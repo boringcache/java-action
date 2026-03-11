@@ -85,11 +85,13 @@ async function run(): Promise<void> {
         noGit: proxyNoGit,
         noPlatform: proxyNoPlatform,
         verbose,
+        readOnly,
       });
       await waitForProxy(proxy.port, undefined, proxy.pid);
       core.saveState('proxyPid', String(proxy.pid));
 
-      writeGradleInitScript(gradleHome, proxy.port, readOnly);
+      const effectiveReadOnly = proxy.readOnly ?? readOnly;
+      writeGradleInitScript(gradleHome, proxy.port, effectiveReadOnly);
 
       if (enableBuildCache) {
         enableGradleBuildCache(gradleHome);
@@ -110,12 +112,14 @@ async function run(): Promise<void> {
         noGit: proxyNoGit,
         noPlatform: proxyNoPlatform,
         verbose,
+        readOnly,
       });
       await waitForProxy(proxy.port, undefined, proxy.pid);
       core.saveState('proxyPid', String(proxy.pid));
 
       ensureMavenBuildCacheExtension(workingDir);
-      writeMavenBuildCacheConfig(workingDir, proxy.port, readOnly);
+      const effectiveReadOnly = proxy.readOnly ?? readOnly;
+      writeMavenBuildCacheConfig(workingDir, proxy.port, effectiveReadOnly);
 
       core.setOutput('proxy-port', String(proxy.port));
       core.info(`Maven build cache configured at http://127.0.0.1:${proxy.port}/`);

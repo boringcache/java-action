@@ -1,4 +1,5 @@
 import * as core from '@actions/core';
+import { hasSaveToken, missingSaveTokenMessage } from '@boringcache/action-core';
 import { execBoringCache, getMiseDataDir, getMavenLocalRepo, stopRegistryProxy } from './utils';
 
 async function run(): Promise<void> {
@@ -19,6 +20,11 @@ async function run(): Promise<void> {
 
     if (!workspace) {
       core.info('No workspace found, skipping save');
+      return;
+    }
+
+    if (!hasSaveToken()) {
+      core.notice(`Save skipped: ${missingSaveTokenMessage()}`);
       return;
     }
 

@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
+const action_core_1 = require("@boringcache/action-core");
 const utils_1 = require("./utils");
 async function run() {
     try {
@@ -51,6 +52,10 @@ async function run() {
         }
         if (!workspace) {
             core.info('No workspace found, skipping save');
+            return;
+        }
+        if (!(0, action_core_1.hasSaveToken)()) {
+            core.notice(`Save skipped: ${(0, action_core_1.missingSaveTokenMessage)()}`);
             return;
         }
         core.info('Saving to BoringCache...');

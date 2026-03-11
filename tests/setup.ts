@@ -25,6 +25,7 @@ const originalEnv = process.env;
 beforeEach(() => {
   jest.resetAllMocks();
   process.env = { ...originalEnv };
+  process.env.BORINGCACHE_SAVE_TOKEN = 'test-save-token';
 });
 
 afterEach(() => {

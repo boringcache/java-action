@@ -18,6 +18,8 @@ jest.mock('fs', () => {
 jest.mock('@boringcache/action-core', () => ({
   ensureBoringCache: jest.fn().mockResolvedValue(undefined),
   execBoringCache: jest.fn().mockResolvedValue(0),
+  hasSaveToken: jest.fn(() => true),
+  missingSaveTokenMessage: jest.fn(() => 'A save-capable token is required. Set BORINGCACHE_SAVE_TOKEN or BORINGCACHE_API_TOKEN.'),
   getWorkspace: jest.fn((input: string) => {
     if (!input) throw new Error('Workspace required');
     if (!input.includes('/')) return `default/${input}`;
@@ -39,6 +41,7 @@ jest.mock('@boringcache/action-core', () => ({
 import {
   ensureBoringCache,
   execBoringCache,
+  hasSaveToken,
   startRegistryProxy,
   waitForProxy,
   stopRegistryProxy,
@@ -59,6 +62,7 @@ describe('Java restore/save round-trip', () => {
 
     (ensureBoringCache as jest.Mock).mockResolvedValue(undefined);
     (execBoringCache as jest.Mock).mockResolvedValue(0);
+    (hasSaveToken as jest.Mock).mockReturnValue(true);
     (startRegistryProxy as jest.Mock).mockResolvedValue({ pid: 54321, port: 5000 });
     (waitForProxy as jest.Mock).mockResolvedValue(undefined);
     (stopRegistryProxy as jest.Mock).mockResolvedValue(undefined);

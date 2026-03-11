@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
 const utils_1 = require("./utils");
 async function run() {
+    var _a, _b;
     try {
         const cliVersion = core.getInput('cli-version') || '';
         const workspace = (0, utils_1.getWorkspace)(core.getInput('workspace') || '');
@@ -91,10 +92,12 @@ async function run() {
                 noGit: proxyNoGit,
                 noPlatform: proxyNoPlatform,
                 verbose,
+                readOnly,
             });
             await (0, utils_1.waitForProxy)(proxy.port, undefined, proxy.pid);
             core.saveState('proxyPid', String(proxy.pid));
-            (0, utils_1.writeGradleInitScript)(gradleHome, proxy.port, readOnly);
+            const effectiveReadOnly = (_a = proxy.readOnly) !== null && _a !== void 0 ? _a : readOnly;
+            (0, utils_1.writeGradleInitScript)(gradleHome, proxy.port, effectiveReadOnly);
             if (enableBuildCache) {
                 (0, utils_1.enableGradleBuildCache)(gradleHome);
             }
@@ -112,11 +115,13 @@ async function run() {
                 noGit: proxyNoGit,
                 noPlatform: proxyNoPlatform,
                 verbose,
+                readOnly,
             });
             await (0, utils_1.waitForProxy)(proxy.port, undefined, proxy.pid);
             core.saveState('proxyPid', String(proxy.pid));
             (0, utils_1.ensureMavenBuildCacheExtension)(workingDir);
-            (0, utils_1.writeMavenBuildCacheConfig)(workingDir, proxy.port, readOnly);
+            const effectiveReadOnly = (_b = proxy.readOnly) !== null && _b !== void 0 ? _b : readOnly;
+            (0, utils_1.writeMavenBuildCacheConfig)(workingDir, proxy.port, effectiveReadOnly);
             core.setOutput('proxy-port', String(proxy.port));
             core.info(`Maven build cache configured at http://127.0.0.1:${proxy.port}/`);
             // Also restore Maven dependency cache (archive-based)
