@@ -108,7 +108,7 @@ describe('Java restore/save round-trip', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        'cli-version': 'v1.12.1',
+        'cli-version': 'v1.12.2',
         'workspace': 'myorg/myproject',
         'cache-tag': '',
         'java-version': '21',
@@ -128,7 +128,7 @@ describe('Java restore/save round-trip', () => {
     });
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    expect(ensureBoringCache).toHaveBeenCalledWith({ version: 'v1.12.1' });
+    expect(ensureBoringCache).toHaveBeenCalledWith({ version: 'v1.12.2' });
 
     expect(execBoringCache).toHaveBeenCalledWith(
       expect.arrayContaining(['restore', 'myorg/myproject']),
@@ -192,7 +192,7 @@ describe('Java restore/save round-trip', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        'cli-version': 'v1.12.1',
+        'cli-version': 'v1.12.2',
         'workspace': 'myorg/myproject',
         'java-version': '17',
         'working-directory': tmpDir,
