@@ -1,8 +1,10 @@
 # boringcache/java-action
 
-Set up Java via mise and cache Gradle or Maven builds with BoringCache.
+Set up Java and wire Gradle or Maven cache paths.
 
-Gradle uses a local HTTP build-cache proxy. Maven restores and saves dependency archives.
+## When to use it
+
+Use it when the build is Gradle or Maven and you want the runtime plus cache wiring handled together.
 
 ## Quick start
 
@@ -18,7 +20,13 @@ Gradle uses a local HTTP build-cache proxy. Maven restores and saves dependency 
 - run: ./gradlew build
 ```
 
-## What it caches
+## Trust model
+
+- Use `read-only: true` on pull requests and other low-trust jobs.
+- Pair that with `BORINGCACHE_RESTORE_TOKEN` for restore-only access.
+- Use `BORINGCACHE_SAVE_TOKEN` only on trusted jobs that should publish Gradle or Maven updates.
+
+## What it handles
 
 - Java from `.java-version` or `.tool-versions` (fallback: `21`).
 - The Java installation under mise.
@@ -47,7 +55,7 @@ Gradle uses a local HTTP build-cache proxy. Maven restores and saves dependency 
 | `proxy-port` | Proxy port in use. |
 | `workspace` | Resolved workspace name. |
 
-## Docs
+## Learn more
 
 - [Language actions docs](https://boringcache.com/docs#language-actions)
 - [GitHub Actions auth and trust model](https://boringcache.com/docs#actions-auth)
