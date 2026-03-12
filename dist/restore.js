@@ -34,6 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const utils_1 = require("./utils");
 async function run() {
     var _a, _b;
@@ -89,6 +91,15 @@ async function run() {
             await (0, utils_1.installJava)(javaMiseId);
         }
         await (0, utils_1.configureJavaEnv)(javaMiseId);
+        const javaBin = process.platform === 'win32' ? 'java.exe' : 'java';
+        const javaHomeBin = process.env.JAVA_HOME
+            ? path.join(process.env.JAVA_HOME, 'bin', javaBin)
+            : '';
+        if (javaHomeBin && !fs.existsSync(javaHomeBin)) {
+            core.warning(`JAVA_HOME/bin/java not found at ${javaHomeBin}, reinstalling...`);
+            await (0, utils_1.installJava)(javaMiseId);
+            await (0, utils_1.configureJavaEnv)(javaMiseId);
+        }
         if (serverId) {
             (0, utils_1.writeMavenSettings)(serverId, serverUsername, serverPassword);
         }

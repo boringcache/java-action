@@ -215,7 +215,6 @@ function findJavaHome(installDir) {
     }
     try {
         const entries = fs.readdirSync(installDir, { withFileTypes: true });
-        core.info(`Contents of ${installDir}: ${entries.map(e => `${e.name}${e.isDirectory() ? '/' : e.isSymbolicLink() ? '@' : ''}`).join(', ')}`);
         for (const entry of entries) {
             if (!entry.isDirectory() && !entry.isSymbolicLink())
                 continue;
@@ -226,13 +225,6 @@ function findJavaHome(installDir) {
             const nestedContents = path.join(nested, 'Contents', 'Home');
             if (fs.existsSync(path.join(nestedContents, 'bin', javaBin))) {
                 return nestedContents;
-            }
-            if (entry.isDirectory()) {
-                try {
-                    const subEntries = fs.readdirSync(nested, { withFileTypes: true });
-                    core.info(`  ${entry.name}/: ${subEntries.map(e => `${e.name}${e.isDirectory() ? '/' : e.isSymbolicLink() ? '@' : ''}`).join(', ')}`);
-                }
-                catch { }
             }
         }
     }

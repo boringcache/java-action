@@ -1,4 +1,6 @@
 import * as core from '@actions/core';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   parseBoolean,
   getWorkspace,
@@ -85,6 +87,16 @@ async function run(): Promise<void> {
     }
 
     await configureJavaEnv(javaMiseId);
+
+    const javaBin = process.platform === 'win32' ? 'java.exe' : 'java';
+    const javaHomeBin = process.env.JAVA_HOME
+      ? path.join(process.env.JAVA_HOME, 'bin', javaBin)
+      : '';
+    if (javaHomeBin && !fs.existsSync(javaHomeBin)) {
+      core.warning(`JAVA_HOME/bin/java not found at ${javaHomeBin}, reinstalling...`);
+      await installJava(javaMiseId);
+      await configureJavaEnv(javaMiseId);
+    }
 
     if (serverId) {
       writeMavenSettings(serverId, serverUsername, serverPassword);

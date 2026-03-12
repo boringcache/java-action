@@ -42348,6 +42348,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
 const utils_1 = __nccwpck_require__(2219);
 async function run() {
     var _a, _b;
@@ -42403,6 +42405,15 @@ async function run() {
             await (0, utils_1.installJava)(javaMiseId);
         }
         await (0, utils_1.configureJavaEnv)(javaMiseId);
+        const javaBin = process.platform === 'win32' ? 'java.exe' : 'java';
+        const javaHomeBin = process.env.JAVA_HOME
+            ? path.join(process.env.JAVA_HOME, 'bin', javaBin)
+            : '';
+        if (javaHomeBin && !fs.existsSync(javaHomeBin)) {
+            core.warning(`JAVA_HOME/bin/java not found at ${javaHomeBin}, reinstalling...`);
+            await (0, utils_1.installJava)(javaMiseId);
+            await (0, utils_1.configureJavaEnv)(javaMiseId);
+        }
         if (serverId) {
             (0, utils_1.writeMavenSettings)(serverId, serverUsername, serverPassword);
         }
@@ -42700,7 +42711,6 @@ function findJavaHome(installDir) {
     }
     try {
         const entries = fs.readdirSync(installDir, { withFileTypes: true });
-        core.info(`Contents of ${installDir}: ${entries.map(e => `${e.name}${e.isDirectory() ? '/' : e.isSymbolicLink() ? '@' : ''}`).join(', ')}`);
         for (const entry of entries) {
             if (!entry.isDirectory() && !entry.isSymbolicLink())
                 continue;
@@ -42711,13 +42721,6 @@ function findJavaHome(installDir) {
             const nestedContents = path.join(nested, 'Contents', 'Home');
             if (fs.existsSync(path.join(nestedContents, 'bin', javaBin))) {
                 return nestedContents;
-            }
-            if (entry.isDirectory()) {
-                try {
-                    const subEntries = fs.readdirSync(nested, { withFileTypes: true });
-                    core.info(`  ${entry.name}/: ${subEntries.map(e => `${e.name}${e.isDirectory() ? '/' : e.isSymbolicLink() ? '@' : ''}`).join(', ')}`);
-                }
-                catch { }
             }
         }
     }
