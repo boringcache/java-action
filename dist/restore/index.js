@@ -42410,7 +42410,12 @@ async function run() {
             ? path.join(process.env.JAVA_HOME, 'bin', javaBin)
             : '';
         if (javaHomeBin && !fs.existsSync(javaHomeBin)) {
-            core.warning(`JAVA_HOME/bin/java not found at ${javaHomeBin}, reinstalling...`);
+            core.warning(`JAVA_HOME/bin/java not found at ${javaHomeBin}, removing corrupt install and reinstalling...`);
+            const miseInstallDir = path.join((0, utils_1.getMiseDataDir)(), 'installs', 'java');
+            try {
+                await fs.promises.rm(miseInstallDir, { recursive: true, force: true });
+            }
+            catch { }
             await (0, utils_1.installJava)(javaMiseId);
             await (0, utils_1.configureJavaEnv)(javaMiseId);
         }
